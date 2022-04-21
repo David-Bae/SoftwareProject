@@ -178,7 +178,7 @@ class BookmarkList {
 	
 }
 
-
+/*
 public class AutoTest {
 	public static void main(String[] args) {
 		BookmarkList test = new BookmarkList("bigbang.txt");
@@ -188,3 +188,4 @@ public class AutoTest {
 		}
 	}
 }
+*/
