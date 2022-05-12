@@ -1,0 +1,7 @@
+// Bookmark information - saved by GUI 
+CAU;2021-01-02_15:49;http://www.cau.ac.kr;;
+Naver;2021-01-02_15:49;http://naver.com/;portal;Home
+Daum;2021-01-02_15:49;http://www.daum.net/;portal;
+EIRIC;2021-01-02_15:49;http://eiric.or.kr;;
+;2022-05-05_17:26;http://kbstar.com/;Bank;
+// end of Bookmark information saved by GUI 
