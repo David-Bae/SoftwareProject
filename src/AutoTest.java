@@ -4,7 +4,9 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.text.SimpleDateFormat;
 import java.awt.*;
+import java.awt.event.*;
 import javax.swing.*;
+import javax.swing.table.*;
 
 class Bookmark {
 	private String name = new String();
@@ -109,7 +111,6 @@ class Bookmark {
 
 class BookmarkList {
 	private ArrayList<Bookmark> list = new ArrayList<Bookmark>();
-	private int listNum = 0;
 	
 	BookmarkList(String filename){
 		File file = new File(filename);			//create File instance of filename
@@ -125,13 +126,11 @@ class BookmarkList {
 		while(input.hasNext()) {
 			String inputLine = input.nextLine().trim();					
 			
-			if(!(inputLine.equals("")) && !(inputLine.substring(0, 2).equals("//"))) {		//공백과 주석을 무시.
-				
+			if(!(inputLine.isEmpty() || inputLine.substring(0, 2).equals("//"))) {		//공백과 주석을 무시.
 				Bookmark tmp = new Bookmark(inputLine.split("[,;]"));
-				
+	
 				if(tmp.checkTimeFormat() && tmp.checkURL()) {
 					list.add(tmp);
-					listNum++;
 				}
 			}
 		}
@@ -140,37 +139,26 @@ class BookmarkList {
 	}
 	
 	public int numBookmarks() {								// inform number of bookmark list
-		return listNum;
+		return list.size();
 	}
 	
 	public Bookmark getBookmark(int i) {					// inform information of i'th bookmark
 		return list.get(i);
 	}
 
-	public void mergeByGroup() {
-		int sorted = 0;					//index of sorted
-
-		while(sorted != listNum - 2) {						//n-1번째 요소까지 정렬.
-			int find = sorted + 1;
-			
-			if(list.get(sorted).getGroupName().equals(""))
-				sorted++;
-			else {
-				while(find != listNum && !(list.get(sorted).getGroupName().equals(list.get(find).getGroupName())))		//그룹이름이 같고, 인덱스가 가장 작은 것 구하기.
-					find++;
+	public void mergeByGroup() {		
+		for(int i = 0 ; i < list.size()-1 ; i++) {
+			if(!list.get(i).getGroupName().equals("")) {
+				int j = i+1;
 				
-				if(find != listNum) {
-					for(int i = find; i > sorted + 1; i--) {
-						Bookmark tmp = new Bookmark();
-						
-						tmp = list.get(i);
-						list.add(i, list.get(i-1));
-						list.add(i-1, tmp);
-					}
+				while(!(list.get(i).getGroupName().equals(list.get(j).getGroupName()) || j == list.size()-1))
+					j++;
+				
+				if(list.get(i).getGroupName().equals(list.get(j).getGroupName())) {
+					Bookmark tmp = list.remove(j);
+					list.add(i+1, tmp);
 				}
 			}
-
-				sorted++;
 		}
 	}
 	
@@ -180,82 +168,174 @@ class BookmarkList {
 	
 }
 
-//GUI classes
+//////	Bookmark
+//////
+//////
+//////
+//////
+//////	GUI 
 
-class BookmarkManagerFrame extends JFrame{
-	class MenuPanel extends JPanel{
+class BookmarkManagerFrame extends JFrame{	//Main Frame
+	private static BookmarkList list;
+	
+	class BookmarkListPanel extends JPanel{
+		BookmarkListPanel(){
+			setLayout(new GridLayout(1,1));
+			
+			DefaultTableModel model = new DefaultTableModel(new String[]
+					{"", "Group", "Name", "URL", "Created Time", "Memo" }, 0);
+			JTable table = new JTable(model);
+			JScrollPane scroll = new JScrollPane(table);
+			
+			String[][] rows = toTable();		//BookmarkList를 읽어서 close된 상태로 출력.
+			for(String[] row : rows)				//
+				model.addRow(row);					//
+			
+			table.getTableHeader().setBackground(Color.LIGHT_GRAY);		//JTable color and size
+			table.setGridColor(Color.LIGHT_GRAY);
+			table.getColumnModel().getColumn(0).setMaxWidth(25);
+			table.getColumnModel().getColumn(1).setMinWidth(85);
+			table.getColumnModel().getColumn(2).setMinWidth(85);
+			table.getColumnModel().getColumn(3).setMinWidth(230);
+			table.getColumnModel().getColumn(4).setMinWidth(180);
+			
+			add(scroll);
+		}
+	}
+	
+	class MenuPanel extends JPanel{	//ADD, DEL, UP... Menu Panel
+		JButton addBtn = new JButton("ADD");
+		JButton delBtn = new JButton("DELETE");
+		JButton upBtn = new JButton("UP");
+		JButton downBtn = new JButton("DOWN");
+		JButton saveBtn = new JButton("SAVE");
+		
 		MenuPanel(){
 			setLayout(new GridLayout(5,1));
-			add(new JButton("ADD"));
-			add(new JButton("DELETE"));
-			add(new JButton("UP"));
-			add(new JButton("DOWN"));
-			add(new JButton("SAVE"));
+			add(addBtn);
+			add(delBtn);
+			add(upBtn);
+			add(downBtn);
+			add(saveBtn);
+			
+			addBtn.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					BookmarkInfoFrame fff = new BookmarkInfoFrame();
+				}							
+			});
 		}
 	}
 	
 	BookmarkManagerFrame(BookmarkList list){
 		super("Bookmark Manager");
+		list.mergeByGroup();
+		this.list = list;
+		
 		setLayout(new BorderLayout());
-		
-		BookmarkTable table = new BookmarkTable(toTable(list));
-		JScrollPane scrollPane = new JScrollPane(table);
-		
-		add(scrollPane, BorderLayout.CENTER);
+		add(new BookmarkListPanel(), BorderLayout.CENTER);
 		add(new MenuPanel(), BorderLayout.EAST);
 		
-		pack();
+		setLocation(450, 200);
+		setSize(800, 350);
 		setVisible(true);
-		setDefaultCloseOperation(super.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(EXIT_ON_CLOSE);
 	}
-	
-	static String[][] toTable(BookmarkList list){
-		String[][] contents = new String[list.numBookmarks()][6];
+
+	static String[][] toTable(){							
+		String[][] rowBuffer = new String[BookmarkManagerFrame.list.numBookmarks()][6];		
 		
-		for(int i = 0 ; i < list.numBookmarks() ; i++) {
-			String[] bookmarkContent = { 
-											"",
-											list.getBookmark(i).getGroupName(),
-											list.getBookmark(i).getName(),
-											list.getBookmark(i).getURL(),
-											list.getBookmark(i).getTime(),
-											list.getBookmark(i).getMemo()
-										};
-			contents[i] = bookmarkContent;
+		int row = 0;
+		int listIndex = 0;
+		String groupName;
+		
+		while(listIndex != BookmarkManagerFrame.list.numBookmarks()) {		//모든 북마크를 참조할 때까지 반복.
+			if(BookmarkManagerFrame.list.getBookmark(listIndex).getGroupName().isEmpty()) {
+				String[] bookmarkContent = { 
+						"",
+						"",
+						BookmarkManagerFrame.list.getBookmark(listIndex).getName(),
+						BookmarkManagerFrame.list.getBookmark(listIndex).getURL(),
+						BookmarkManagerFrame.list.getBookmark(listIndex).getTime(),
+						BookmarkManagerFrame.list.getBookmark(listIndex).getMemo()
+					};
+				rowBuffer[row++] = bookmarkContent;
+				listIndex++;
+			} else {
+				groupName = BookmarkManagerFrame.list.getBookmark(listIndex).getGroupName();
+				String[] bookmarkContent = { "  >", groupName, "", "", "", ""};
+				rowBuffer[row++] = bookmarkContent;
+				listIndex++;
+				
+				while(listIndex != BookmarkManagerFrame.list.numBookmarks() && 
+						BookmarkManagerFrame.list.getBookmark(listIndex).getGroupName().equals(groupName))
+					listIndex++;
+			}
 		}
+		
+		String[][] rows = new String[row][6];
+		for(int i=0 ; i < row ; i++)
+			rows[i] = rowBuffer[i];
+		
+		return rows;
+	}
+	
+}
+
+class BookmarkInfoFrame extends JFrame{
+	class BookmarkAddPanel extends JPanel{
+		BookmarkAddPanel(){
+			setLayout(new GridLayout(1,1));
+			DefaultTableModel model = new DefaultTableModel(new String[]{"Group", "Name", "URL", "Memo"}, 0);
+			JTable table = new JTable(model);
+			JScrollPane scroll = new JScrollPane(table);
+			model.addRow(new String[] {"", "", "", ""});
 			
-		return contents;
+			table.getTableHeader().setBackground(Color.LIGHT_GRAY);		//JTable color and size
+			table.setGridColor(Color.LIGHT_GRAY);
+			table.getColumnModel().getColumn(0).setMinWidth(120);
+			table.getColumnModel().getColumn(0).setMaxWidth(120);
+			table.getColumnModel().getColumn(1).setMinWidth(120);
+			table.getColumnModel().getColumn(1).setMaxWidth(120);
+			table.getColumnModel().getColumn(2).setMinWidth(230);
+			table.getColumnModel().getColumn(3).setMinWidth(80);
+			
+			add(scroll);
+		}
 	}
 	
-}
-
-class BookmarkTable extends JTable{
-	static String[] header = {"", "Group", "Name", "URL", "Created Time", "Memo" };
-	
-	BookmarkTable(String[][] contents){
-		super(contents, header);
+	class InputPanel extends JPanel{	//Input Button Panel - Event Listener needed
+		JButton inputBtn = new JButton("Input");
+		
+		InputPanel(){
+			setLayout(new GridLayout(1,1));
+			add(inputBtn);
+		}
 	}
 	
+	BookmarkInfoFrame(){
+		super("Input New Bookmark");
+		
+		setLayout(new BorderLayout());
+		add(new BookmarkAddPanel(), BorderLayout.CENTER);
+		add(new InputPanel(), BorderLayout.EAST);
+		
+		setLocation(450, 570);
+		setSize(800, 100);
+		setVisible(true);
+	}
 }
 
-
-
-
-
-
-
-
+//////	GUI
+//////
+//////
+//////
+//////	Main
 
 public class AutoTest {
 	public static void main(String[] args) {
-		BookmarkList test = new BookmarkList("bigbang.txt");
-		test.mergeByGroup();
+		BookmarkList list = new BookmarkList("bookmark.txt");
+		//BookmarkList list = new BookmarkList("bookmark-org.txt");
 		
-		for(int i =0; i< test.numBookmarks() ; i++) {
-			test.getBookmark(i).print();
-		}
-		
-		BookmarkManagerFrame aaaa = new BookmarkManagerFrame(test);
-		
+		new BookmarkManagerFrame(list);
 	}
 }
